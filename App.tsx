@@ -1,0 +1,71 @@
+import React, { useMemo, useState } from 'react';
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+
+const C = { bg:'#08090D', panel:'#151720', panel2:'#202331', line:'#3B3F4F', text:'#F4F4F6', muted:'#9DA2B3', blue:'#3F6FF5', green:'#3E9B73', danger:'#F04B55', amber:'#F2AA45' };
+const money = (n:number) => `€ ${(n/100).toFixed(2).replace('.', ',')}`;
+const products = [
+  { name:'Stella Artois', price:500, category:'Dranken' }, { name:'Burger', price:1000, category:'Gerechten' },
+  { name:'French Fries', price:400, category:'Bijgerechten' }, { name:'Modelo', price:450, category:'Dranken' },
+  { name:'Fish & Chips', price:2000, category:'Gerechten' }, { name:'Croque Monsieur', price:1600, category:'Gerechten' },
+  { name:'Plat water', price:400, category:'Dranken' }, { name:'Espresso', price:300, category:'Dessert' }
+];
+
+type Line = { name:string; price:number; qty:number; seat:string };
+
+export default function App() {
+  const isTablet = Dimensions.get('window').width >= 700;
+  const [mode, setMode] = useState<'iphone'|'ipad'>(isTablet ? 'ipad' : 'iphone');
+  return <SafeAreaView style={styles.safe}><StatusBar style="light" />
+    <View style={styles.modeBar}><Text style={styles.modeTitle}>mise<span style={styles.brandDot}>.pos</span></Text><View style={styles.modeSwitch}><Pressable onPress={()=>setMode('iphone')} style={[styles.modeButton, mode==='iphone'&&styles.modeSelected]}><Text style={styles.modeText}>iPhone · Table</Text></Pressable><Pressable onPress={()=>setMode('ipad')} style={[styles.modeButton, mode==='ipad'&&styles.modeSelected]}><Text style={styles.modeText}>iPad · Main Hub</Text></Pressable></View></View>
+    {mode === 'iphone' ? <TableSidePhone /> : <MainHubTablet />}
+  </SafeAreaView>;
+}
+
+function TableSidePhone() {
+  const [seat, setSeat] = useState('Shared');
+  const [lines, setLines] = useState<Line[]>([
+    {name:'Stella Artois',price:500,qty:1,seat:'1'}, {name:'Burger',price:1000,qty:1,seat:'1'}, {name:'French Fries',price:400,qty:1,seat:'1'},
+    {name:'Modelo',price:450,qty:1,seat:'2'}, {name:'Fish & Chips',price:2000,qty:1,seat:'2'}, {name:'French Fries',price:400,qty:1,seat:'2'}
+  ]);
+  const total = useMemo(()=>lines.reduce((s,l)=>s+l.price*l.qty,0),[lines]);
+  const add = (p:typeof products[number]) => setLines(x=>[...x,{...p,qty:1,seat}]);
+  return <View style={styles.phoneScreen}>
+    <Header title="Bills" left="Settings" />
+    <ScrollView contentContainerStyle={styles.phoneContent}>
+      <View style={styles.rowBetween}><Text style={styles.tableTitle}>Table 1</Text><Text style={styles.link}>Actions</Text></View>
+      <View style={styles.utilityRow}><SmallButton label="By seat" icon="chevron-down"/><SmallButton label="2" icon="people"/><SmallButton label="Default tag" icon="card"/><SmallButton label="Assign customer" icon="person-add" /></View>
+      <View style={styles.seatTabs}>{['Shared','Seat 1','Seat 2'].map(s=><Pressable key={s} onPress={()=>setSeat(s==='Shared'?'Shared':s.replace('Seat ',''))} style={[styles.seatTab, ((s==='Shared'&&seat==='Shared')||s===`Seat ${seat}`)&&styles.activeTab]}><Text style={styles.seatText}>{s}</Text></Pressable>)}</View>
+      {['1','2'].map(s=><View key={s}><View style={styles.sectionTitle}><Text style={styles.sectionText}>Seat {s}</Text><Ionicons name="pencil-outline" size={18} color={C.text}/></View>{lines.filter(l=>l.seat===s).map((l,i)=><LineRow line={l} key={`${l.name}-${i}`} />)}</View>)}
+      <View style={styles.totals}><Total label="Subtotal" value={money(total)} /><Total label="Tax" value={money(Math.round(total*.06))} /><Total label="Total" value={money(Math.round(total*1.06))} strong /></View>
+      <View style={styles.twoButtons}><ActionButton label="Switch table" /><ActionButton label="Add items" onPress={()=>add(products[0])} /></View>
+      <View style={styles.twoButtons}><ActionButton label="Send" color={C.blue} /><ActionButton label="Pay" color={C.green} /></View>
+      <Text style={styles.sectionCaption}>Add items</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>{products.slice(0,6).map(p=><Pressable onPress={()=>add(p)} style={styles.quickProduct} key={p.name}><Text style={styles.quickName}>{p.name}</Text><Text style={styles.quickPrice}>{money(p.price)}</Text></Pressable>)}</ScrollView>
+    </ScrollView>
+    <BottomTabs labels={['Tables','Order','Alerts']} icons={['grid','receipt','notifications-outline']} />
+  </View>;
+}
+
+function MainHubTablet() {
+  const [category, setCategory] = useState('Popular'); const [selectedTable, setSelectedTable] = useState('Table 2'); const [lines, setLines] = useState<Line[]>([]); const [course, setCourse] = useState('1');
+  const total = lines.reduce((s,l)=>s+l.price*l.qty,0); const add=(p:typeof products[number])=>setLines(x=>[...x,{...p,qty:1,seat:'Shared'}]);
+  return <View style={styles.tabletScreen}><Header title="Manager" left="Logout" />
+    <View style={styles.tabletBody}><View style={styles.orderColumn}><View style={styles.rowBetween}><View><Text style={styles.tableTitle}>{selectedTable}</Text><Text style={styles.muted}>Dining room</Text></View><Text style={styles.link}>Actions</Text></View><View style={styles.utilityRow}><SmallButton label="Seat mode" icon="chevron-down"/><SmallButton label="2" icon="people"/><SmallButton label="Default" icon="card" /></View><View style={styles.courseBar}>{['1','2','+'].map(x=><Pressable onPress={()=>setCourse(x)} key={x} style={[styles.courseButton,course===x&&styles.activeCourse]}><Text style={styles.courseText}>{x==='+'?'+':`Course ${x}`}</Text></Pressable>)}</View><ScrollView style={styles.orderLines}>{lines.length===0?<Text style={styles.empty}>Select products to start an order</Text>:lines.map((l,i)=><LineRow line={l} key={i}/>)}</ScrollView><View style={styles.orderBottom}><Total label="Order total" value={money(total)} strong/><Total label="Incl. taxes" value={money(Math.round(total*.06))}/></View><View style={styles.tabletButtonRow}><ActionButton label="Tables" /><ActionButton label="Print note" /><ActionButton label="Edit order" /></View></View>
+      <View style={styles.categoryColumn}><Text style={styles.columnTitle}>Categories</Text>{['Popular','Starters','Main Courses','Desserts','Beverages','Cocktails','Wine'].map(c=><Pressable key={c} onPress={()=>setCategory(c)} style={[styles.categoryButton,category===c&&styles.categorySelected]}><Text style={styles.categoryText}>{c}</Text></Pressable>)}</View>
+      <View style={styles.productColumn}><View style={styles.rowBetween}><Text style={styles.columnTitle}>{category}</Text><View style={styles.courseSelector}>{['1','2','+'].map(c=><Pressable key={c} onPress={()=>setCourse(c)} style={[styles.coursePill,course===c&&styles.activeCourse]}><Text style={styles.courseText}>{c}</Text></Pressable>)}</View></View><View style={styles.productGrid}>{products.map((p,i)=><Pressable key={`${p.name}-${i}`} onPress={()=>add(p)} style={[styles.tabletProduct,{borderBottomColor:[C.danger,C.amber,C.green,C.blue][i%4]}]}><Text style={styles.productName}>{p.name}</Text><Text style={styles.productPrice}>{money(p.price)}</Text></Pressable>)}</View><View style={styles.tabletActions}><ActionButton label={`Send · ${lines.length} items`} color={C.blue}/><ActionButton label={`Pay · ${money(total||4800)}`} color={C.green}/></View></View>
+    </View><BottomTabs labels={['Menu','Tables','Orders','Customers','Receipts']} icons={['restaurant','grid','receipt','people','document-text']} />
+  </View>;
+}
+
+function Header({title,left}:{title:string;left:string}) { return <View style={styles.header}><Text style={styles.headerLeft}>{left}</Text><Text style={styles.headerTitle}>{title}</Text><View style={styles.headerIcons}><Ionicons name="scan-outline" size={21} color={C.blue}/><Ionicons name="search-outline" size={22} color={C.blue}/></View></View> }
+function SmallButton({label,icon}:{label:string;icon:string}) { return <View style={styles.smallButton}><Ionicons name={icon as any} size={15} color={C.muted}/><Text style={styles.smallText}>{label}</Text></View> }
+function LineRow({line}:{line:Line}) { return <View style={styles.lineRow}><Text style={styles.lineName}>{line.qty} {line.name}<Text style={styles.edit}>  ✎</Text></Text><Text style={styles.seatNumber}>{line.seat}</Text><Text style={styles.linePrice}>{money(line.price*line.qty).replace('€ ','')}</Text></View> }
+function Total({label,value,strong}:{label:string;value:string;strong?:boolean}) { return <View style={styles.totalRow}><Text style={[styles.totalLabel,strong&&styles.strong]}>{label}</Text><Text style={[styles.totalValue,strong&&styles.strong]}>{value}</Text></View> }
+function ActionButton({label,onPress,color}:{label:string;onPress?:()=>void;color?:string}) { return <Pressable onPress={onPress} style={[styles.actionButton,color?{backgroundColor:color}:null]}><Text style={[styles.actionText,color===C.green&&{color:'#07150F'}]}>{label}</Text></Pressable> }
+function BottomTabs({labels,icons}:{labels:string[];icons:string[]}) { return <View style={styles.bottomTabs}>{labels.map((x,i)=><View key={x} style={styles.bottomTab}><Ionicons name={icons[i] as any} size={17} color={i===0?C.blue:C.muted}/><Text style={styles.bottomText}>{x}</Text></View>)}</View> }
+
+const styles=StyleSheet.create({
+ safe:{flex:1,backgroundColor:C.bg}, modeBar:{height:44,backgroundColor:'#101117',flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,borderBottomWidth:1,borderBottomColor:C.line},modeTitle:{color:C.text,fontSize:17,fontWeight:'800'},brandDot:{color:C.blue},modeSwitch:{flexDirection:'row',gap:6},modeButton:{paddingHorizontal:9,paddingVertical:6,borderRadius:6},modeSelected:{backgroundColor:C.panel2},modeText:{color:C.muted,fontSize:11},phoneScreen:{flex:1,backgroundColor:'#000'},tabletScreen:{flex:1,backgroundColor:'#000'},header:{height:58,backgroundColor:'#292D3D',alignItems:'center',justifyContent:'center',borderBottomWidth:1,borderBottomColor:'#11131A'},headerLeft:{position:'absolute',left:18,color:C.blue,fontSize:15},headerTitle:{color:C.text,fontSize:15,fontWeight:'700'},headerIcons:{position:'absolute',right:18,flexDirection:'row',gap:18},phoneContent:{padding:10,paddingBottom:30},rowBetween:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},tableTitle:{color:C.text,fontSize:18,fontWeight:'700'},muted:{color:C.muted,fontSize:12,marginTop:5},link:{color:C.blue,fontSize:14},utilityRow:{flexDirection:'row',gap:6,marginVertical:10},smallButton:{backgroundColor:C.panel2,borderRadius:4,paddingHorizontal:9,paddingVertical:8,flexDirection:'row',gap:5,alignItems:'center',maxWidth:145},smallText:{color:C.text,fontSize:11},seatTabs:{backgroundColor:C.panel,flexDirection:'row',marginBottom:7},seatTab:{padding:10,flex:1},activeTab:{backgroundColor:C.blue},seatText:{color:C.text,fontSize:14},sectionTitle:{height:43,backgroundColor:C.panel2,paddingHorizontal:12,alignItems:'center',justifyContent:'space-between',flexDirection:'row',borderBottomWidth:1,borderBottomColor:C.line},sectionText:{color:C.text,fontSize:15,fontWeight:'700'},lineRow:{minHeight:51,backgroundColor:'#181B25',borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',paddingHorizontal:12},lineName:{color:C.text,fontSize:14,flex:1},edit:{color:C.muted},seatNumber:{color:C.muted,width:40,textAlign:'center'},linePrice:{color:C.text,width:58,textAlign:'right',fontSize:14,fontVariant:['tabular-nums']},totals:{padding:10,borderTopWidth:1,borderTopColor:C.line},totalRow:{flexDirection:'row',justifyContent:'space-between',paddingVertical:2},totalLabel:{color:C.muted,fontSize:13},totalValue:{color:C.text,fontSize:13,fontVariant:['tabular-nums']},strong:{color:C.text,fontWeight:'800',fontSize:15},twoButtons:{flexDirection:'row',gap:6,marginTop:6},actionButton:{backgroundColor:C.panel2,borderRadius:4,minHeight:48,flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:8},actionText:{color:C.blue,fontWeight:'700',fontSize:14},sectionCaption:{color:C.muted,fontSize:13,marginTop:18,marginBottom:8},quickProduct:{backgroundColor:C.panel2,width:125,height:66,padding:9,marginRight:7,borderBottomWidth:3,borderBottomColor:C.blue,borderRadius:4},quickName:{color:C.text,fontSize:12},quickPrice:{color:C.muted,fontSize:12,marginTop:7},bottomTabs:{height:58,backgroundColor:'#151720',borderTopWidth:1,borderTopColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},bottomTab:{alignItems:'center',gap:3},bottomText:{color:C.muted,fontSize:10},tabletBody:{flex:1,flexDirection:'row'},orderColumn:{width:'31%',backgroundColor:'#151720',padding:12,borderRightWidth:1,borderRightColor:C.line},categoryColumn:{width:'15%',backgroundColor:'#111218',paddingVertical:8},productColumn:{flex:1,backgroundColor:'#000',padding:14},courseBar:{flexDirection:'row',gap:5,marginBottom:8},courseButton:{backgroundColor:C.panel2,paddingHorizontal:10,paddingVertical:8,borderRadius:3},courseText:{color:C.text,fontSize:12},activeCourse:{backgroundColor:C.blue},orderLines:{flex:1},empty:{color:C.muted,textAlign:'center',marginTop:60,fontSize:13},orderBottom:{paddingTop:10,borderTopWidth:1,borderTopColor:C.line},tabletButtonRow:{flexDirection:'row',gap:5,marginTop:8},tabletButtonRow .actionButton:{minHeight:42},columnTitle:{color:C.text,fontSize:14,fontWeight:'700',paddingHorizontal:8},categoryButton:{paddingVertical:16,paddingHorizontal:10,borderLeftWidth:4,borderLeftColor:'transparent'},categorySelected:{backgroundColor:C.panel2,borderLeftColor:C.blue},categoryText:{color:C.text,fontSize:12},courseSelector:{flexDirection:'row',gap:4},coursePill:{backgroundColor:C.panel2,paddingHorizontal:10,paddingVertical:7,borderRadius:3},productGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},tabletProduct:{width:'31%',minHeight:93,backgroundColor:'#202331',padding:14,borderBottomWidth:4,borderRadius:3,justifyContent:'space-between'},productName:{color:C.text,fontSize:14},productPrice:{color:C.muted,fontSize:12},tabletActions:{flexDirection:'row',gap:7,marginTop:14},tabletActions .actionButton:{minHeight:58},
+});

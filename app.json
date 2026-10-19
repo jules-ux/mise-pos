@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "mise.pos",
+    "slug": "mise-pos",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "scheme": "misepos",
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#0B0C10" } }
+  }
+}
